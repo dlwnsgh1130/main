@@ -1,44 +1,69 @@
 import { useState } from 'react';
-import './App.css';
-import { CategoryGrid } from './components/CategoryGrid';
+import { Route, Routes } from 'react-router-dom';
+import { AuthModal } from './components/AuthModal';
+import type { AuthMode } from './components/AuthModal';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
-import { HeroBanner } from './components/HeroBanner';
-import { ProductGrid } from './components/ProductGrid';
-import { SearchPanel } from './components/SearchPanel';
-import { categories, products, recentSearches } from './data/catalog';
+import { ProductDetailModal } from './components/ProductDetailModal';
+import { DesignPreviewPage } from './pages/DesignPreviewPage';
+import { DesignLabPage } from './pages/DesignLabPage';
+import { HomePage } from './pages/HomePage';
+import { MyPage } from './pages/MyPage';
+import { SearchResultsPage } from './pages/SearchResultsPage';
+import { hairline } from './styles/hairline';
+import type { Product } from './types/product';
 
 function App() {
-  const [activeCategoryId, setActiveCategoryId] = useState('laptop');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const closeAuthModal = () => setAuthMode(null);
 
   return (
-    <div className="app-shell">
-      {isSearchOpen && (
-        <button
-          className="search-backdrop"
-          onClick={() => setIsSearchOpen(false)}
-          aria-label="검색 팝업 닫기"
+    <div className={`relative font-sans antialiased text-gray-900 ${hairline.page}`}>
+      <div
+        className={`w-full min-h-screen relative z-10 flex flex-col transition-[filter] duration-300 ${
+          selectedProduct ? 'blur-[6px]' : ''
+        }`}
+      >
+        <Header
+          isLoggedIn={isLoggedIn}
+          onAuthOpen={setAuthMode}
+          onLogout={() => setIsLoggedIn(false)}
         />
-      )}
 
-      <Header />
-      <main className="app-main">
-        <SearchPanel
-          isOpen={isSearchOpen}
-          recentSearches={recentSearches}
-          onFocus={() => setIsSearchOpen(true)}
-          onClose={() => setIsSearchOpen(false)}
-        />
-        <HeroBanner />
-        <CategoryGrid
-          categories={categories}
-          activeCategoryId={activeCategoryId}
-          onSelect={setActiveCategoryId}
-        />
-        <ProductGrid products={products} />
-      </main>
-      <Footer />
+        <Routes>
+          <Route
+            path="/"
+            element={<HomePage onProductSelect={setSelectedProduct} />}
+          />
+          <Route
+            path="/search"
+            element={<SearchResultsPage onProductSelect={setSelectedProduct} />}
+          />
+          <Route path="/mypage" element={<MyPage />} />
+          <Route path="/design-lab" element={<DesignLabPage />} />
+          <Route path="/design/:variant" element={<DesignPreviewPage />} />
+        </Routes>
+
+        <Footer />
+      </div>
+
+      <AuthModal
+        mode={authMode}
+        onClose={closeAuthModal}
+        onModeChange={setAuthMode}
+        onLoginSuccess={() => {
+          setIsLoggedIn(true);
+          closeAuthModal();
+        }}
+      />
+      <ProductDetailModal
+        key={selectedProduct?.id ?? 'empty-product-modal'}
+        product={selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+      />
     </div>
   );
 }
