@@ -19,6 +19,7 @@ from pathlib import Path
 
 # --- 설정 및 입력 ---
 keyword_file = Path(__file__).with_name("keyword_list.csv")
+result_dir = Path(__file__).with_name("results")
 keyword_df = pd.read_csv(keyword_file, encoding='utf-8-sig')
 keyword_column = 'keyword' if 'keyword' in keyword_df.columns else keyword_df.columns[0]
 keywords = keyword_df[keyword_column].dropna().astype(str).str.strip()
@@ -245,6 +246,9 @@ def choose_canonical_name(values):
         ),
     )
 
+def keyword_length(value):
+    return len(normalize_search_text(value))
+
 def deduplicate_items(df):
     if df.empty:
         return df
@@ -259,9 +263,11 @@ def deduplicate_items(df):
         .reset_index()
     )
 
-    deduplicated_df = df.drop_duplicates(subset=dedupe_columns, keep="first").drop(
-        columns=["canonical_name"],
-        errors="ignore",
+    deduplicated_df = (
+        df.assign(_keyword_length=df["keyword"].apply(keyword_length))
+        .sort_values("_keyword_length", ascending=False, kind="mergesort")
+        .drop_duplicates(subset=dedupe_columns, keep="first")
+        .drop(columns=["canonical_name", "_keyword_length"], errors="ignore")
     )
     return deduplicated_df.merge(keyword_summary, on=dedupe_columns, how="left")
 
@@ -289,8 +295,9 @@ for keyword in keywords:
     polite_delay(KEYWORD_DELAY_RANGE)
 
 if all_dfs:
+    result_dir.mkdir(parents=True, exist_ok=True)
     total_df = pd.concat(all_dfs, ignore_index=True)
     total_count = len(total_df)
     total_df = deduplicate_items(total_df)
-    total_df.to_csv(f"통합조회_전체_{now}.csv", index=False, encoding='utf-8-sig')
+    total_df.to_csv(result_dir / f"통합조회_전체_{now}.csv", index=False, encoding='utf-8-sig')
     print(f"\n✅ 전체 키워드 총 {total_count}개 매물 수집, 중복 제거 후 {len(total_df)}개 저장 완료!")
